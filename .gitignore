@@ -1,0 +1,43 @@
+.DS_Store
+node_modules
+_gsdata_
+.svn
+dist
+coverage
+
+# local env files
+.env
+.env.local
+.env.*.local
+.env.development
+
+
+# Локальные документы и заметки разработки
+SHELF_CHECKLIST.md
+SPEC.md
+# Инбокс правок от заказчика
+app/pravki/
+
+
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw*
+temp*
+
+# Локальная разработка backend (см. structure/server/local-docker-setup.md)
+# Dockerfile.local — Apache настроен на /var/www/html/efgi (DocumentRoot + AllowOverride).
+# В прод-Dockerfile этого нет: на сервере 172.27.239.39:8099 Apache сконфигурирован вне контейнера.
+# run_docker.local.ps1 — запуск из Dockerfile.local с volume mount (правки PHP без пересборки).
+Dockerfile.local
+run_docker.local.ps1
