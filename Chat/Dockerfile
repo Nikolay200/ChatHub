@@ -1,3 +1,5 @@
+#docker run -d --name chat-container -p 8080:8080 chat-app
+
 # Этап сборки
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /source
