@@ -1,39 +1,137 @@
 ﻿@{
-    ViewData["Title"] = "Chat";
+    ViewData["Title"] = "SignalR Demo";
 }
 
-<h2>SignalR Чат</h2>
+<div class="container mt-3">
+    <div class="row">
+        <!-- Онлайн-пользователи -->
+        <div class="col-md-3">
+            <h5>Онлайн (<span id="onlineCount">0</span>)</h5>
+            <ul id="onlineList" class="list-group list-group-flush"></ul>
 
-<div>
-    <input type="text" id="userInput" placeholder="Ваше имя" />
-    <input type="text" id="messageInput" placeholder="Сообщение..." />
-    <button id="sendButton">Отправить</button>
+            <hr />
+            <h6>Комнаты</h6>
+            <div class="d-flex gap-2">
+                <input id="roomInput" class="form-control form-control-sm" placeholder="название" />
+                <button id="joinBtn" class="btn btn-sm btn-primary">Войти</button>
+            </div>
+            <div class="mt-2">
+                <span class="badge bg-secondary" id="currentRoom">general</span>
+            </div>
+        </div>
+
+        <!-- Чат -->
+        <div class="col-md-9">
+            <div class="d-flex gap-2 mb-2">
+                <input id="userInput" class="form-control" placeholder="Ваше имя" />
+                <button id="connectBtn" class="btn btn-success">Подключиться</button>
+            </div>
+
+            <ul id="messagesList" class="list-group mb-2" style="height: 400px; overflow-y: auto;"></ul>
+
+            <div class="d-flex gap-2">
+                <input id="messageInput" class="form-control" placeholder="Сообщение..." disabled />
+                <button id="sendBtn" class="btn btn-primary" disabled>Отправить</button>
+            </div>
+            <small id="typingIndicator" class="text-muted"></small>
+        </div>
+    </div>
 </div>
-<ul id="messagesList"></ul>
 
 <script>
-    // Создаем подключение к хабу по URL, который мы задали в Program.cs
-    const connection = new signalR.HubConnectionBuilder()
-        .withUrl("/chatHub")
-        .build();
+    let connection = null;
+    let currentRoom = "general";
+    let typingTimer = null;
 
-    // Обработчик входящих сообщений
-    connection.on("ReceiveMessage", (user, message) => {
+    const $ = id => document.getElementById(id);
+
+    function addMessage(html, cssClass = "") {
         const li = document.createElement("li");
-        li.textContent = `${user}: ${message}`;
-        document.getElementById("messagesList").appendChild(li);
+        li.className = `list-group-item ${cssClass}`;
+        li.innerHTML = html;
+        $("messagesList").appendChild(li);
+        $("messagesList").scrollTop = $("messagesList").scrollHeight;
+    }
+
+    $("connectBtn").addEventListener("click", async () => {
+        const user = $("userInput").value.trim() || "Anonymous";
+
+        connection = new signalR.HubConnectionBuilder()
+            .withUrl(`/chatHub?user=${encodeURIComponent(user)}`)
+            .withAutomaticReconnect()   // ← авто-переподключение
+            .build();
+
+        // --- Подписки на события ---
+
+        connection.on("ReceiveMessage", (msg) => {
+            const time = new Date(msg.sentAt).toLocaleTimeString();
+            addMessage(`<b>${msg.user}</b> <small class="text-muted">${time}</small><br>${msg.text}`);
+        });
+
+        connection.on("SystemMessage", (text) => {
+            addMessage(`<i class="text-muted">${text}</i>`);
+        });
+
+        connection.on("UserJoined", (name) => addMessage(`<i class="text-success">${name} присоединился</i>`));
+        connection.on("UserLeft",   (name) => addMessage(`<i class="text-danger">${name} покинул чат</i>`));
+
+        connection.on("OnlineUsers", (users) => {
+            $("onlineCount").textContent = users.length;
+            $("onlineList").innerHTML = users
+                .map(u => `<li class="list-group-item py-1">${u}</li>`)
+                .join("");
+        });
+
+        connection.on("UserTyping", (name, room) => {
+            if (room !== currentRoom) return;
+            $("typingIndicator").textContent = `${name} печатает...`;
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(() => $("typingIndicator").textContent = "", 1500);
+        });
+
+        connection.on("RoomJoined", (room) => {
+            currentRoom = room;
+            $("currentRoom").textContent = room;
+            addMessage(`<i class="text-info">Вы вошли в комнату ${room}</i>`);
+        });
+
+        connection.on("PrivateMessage", (from, text, at) => {
+            addMessage(`<b class="text-warning">[личное от ${from}]</b> ${text}`, "list-group-item-warning");
+        });
+
+        // --- Старт ---
+        try {
+            await connection.start();
+            $("messageInput").disabled = false;
+            $("sendBtn").disabled = false;
+            $("connectBtn").disabled = true;
+            $("userInput").disabled = true;
+        } catch (err) {
+            alert("Ошибка подключения: " + err);
+        }
     });
 
-    // Запуск соединения
-    connection.start().catch(err => console.error(err.toString()));
+    // Отправка сообщения
+    $("sendBtn").addEventListener("click", async () => {
+        const text = $("messageInput").value.trim();
+        if (!text) return;
+        await connection.invoke("SendMessageToRoom", {
+            text: text,
+            room: currentRoom
+        });
+        $("messageInput").value = "";
+    });
 
-    // Обработчик кнопки
-    document.getElementById("sendButton").addEventListener("click", (event) => {
-        const user = document.getElementById("userInput").value;
-        const message = document.getElementById("messageInput").value;
-        
-        // Вызываем метод SendMessage на сервере
-        connection.invoke("SendMessage", user, message).catch(err => console.error(err.toString()));
-        event.preventDefault();
+    // Индикатор набора
+    $("messageInput").addEventListener("input", () => {
+        connection?.invoke("Typing", currentRoom).catch(() => {});
+    });
+
+    // Вход в комнату
+    $("joinBtn").addEventListener("click", async () => {
+        const room = $("roomInput").value.trim();
+        if (!room || !connection) return;
+        await connection.invoke("LeaveRoom", currentRoom);
+        await connection.invoke("JoinRoom", room);
     });
 </script>
