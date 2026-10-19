@@ -1,0 +1,39 @@
+﻿@{
+    ViewData["Title"] = "Chat";
+}
+
+<h2>SignalR Чат</h2>
+
+<div>
+    <input type="text" id="userInput" placeholder="Ваше имя" />
+    <input type="text" id="messageInput" placeholder="Сообщение..." />
+    <button id="sendButton">Отправить</button>
+</div>
+<ul id="messagesList"></ul>
+
+<script>
+    // Создаем подключение к хабу по URL, который мы задали в Program.cs
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/chatHub")
+        .build();
+
+    // Обработчик входящих сообщений
+    connection.on("ReceiveMessage", (user, message) => {
+        const li = document.createElement("li");
+        li.textContent = `${user}: ${message}`;
+        document.getElementById("messagesList").appendChild(li);
+    });
+
+    // Запуск соединения
+    connection.start().catch(err => console.error(err.toString()));
+
+    // Обработчик кнопки
+    document.getElementById("sendButton").addEventListener("click", (event) => {
+        const user = document.getElementById("userInput").value;
+        const message = document.getElementById("messageInput").value;
+        
+        // Вызываем метод SendMessage на сервере
+        connection.invoke("SendMessage", user, message).catch(err => console.error(err.toString()));
+        event.preventDefault();
+    });
+</script>
