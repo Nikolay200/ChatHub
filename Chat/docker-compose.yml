@@ -5,14 +5,14 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:16
+    image: postgres:15
     container_name: chat-postgres
     environment:
       POSTGRES_DB: chatdb
       POSTGRES_USER: chatuser
       POSTGRES_PASSWORD: chatpass
     ports:
-      - "5432:5432"
+      - "7777:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

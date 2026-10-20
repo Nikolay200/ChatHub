@@ -62,7 +62,14 @@
             .build();
 
         // --- Подписки на события ---
-
+        connection.on("HistoryLoaded", (room, history) => {
+            if (room !== currentRoom) return;
+            $("messagesList").innerHTML = "";
+                history.forEach(msg => {
+            const time = new Date(msg.sentAt).toLocaleTimeString();
+            addMessage(`<b>${msg.user}</b> <small class="text-muted">${time}</small><br>${msg.text}`);
+            });
+        });
         connection.on("ReceiveMessage", (msg) => {
             console.log("ReceiveMessage получен:", msg);
             const time = new Date(msg.sentAt).toLocaleTimeString();
