@@ -75,6 +75,11 @@ namespace Chat.Hubs
         {
             await Groups.AddToGroupAsync(Context.ConnectionId, room);
             await Clients.Caller.SendAsync("RoomJoined", room);
+
+            // Отправляем историю новой комнаты только этому клиенту
+            var history = await GetHistory(room, 50);
+            await Clients.Caller.SendAsync("HistoryLoaded", room, history);
+
             Console.WriteLine($"[JOIN] {GetUserName()} -> {room}");
         }
 

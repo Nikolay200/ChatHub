@@ -14,6 +14,7 @@ builder.Services.AddDbContextFactory<ChatDbContext>(options =>
 var app = builder.Build();
 
 app.UseRouting();
+app.UseStaticFiles();
 
 app.MapControllerRoute(
     name: "default",

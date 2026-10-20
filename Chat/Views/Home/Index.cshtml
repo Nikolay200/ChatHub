@@ -53,6 +53,22 @@
         $("messagesList").scrollTop = $("messagesList").scrollHeight;
     }
 
+    async function loadHistory(room) {
+        try {
+            const history = await connection.invoke("GetHistory", room, 50);
+            $("messagesList").innerHTML = "";   // очищаем перед загрузкой
+            history.forEach(msg => {
+                const time = new Date(msg.sentAt).toLocaleTimeString();
+                addMessage(`<b>${msg.user}</b> <small class="text-muted">${time}</small><br>${msg.text}`);
+            });
+            if (history.length === 0) {
+                addMessage(`<i class="text-muted">В комнате ${room} пока нет сообщений</i>`);
+            }
+        } catch (err) {
+            console.error("Ошибка загрузки истории:", err);
+        }
+    }
+
     $("connectBtn").addEventListener("click", async () => {
         const user = $("userInput").value.trim() || "Anonymous";
 
@@ -97,10 +113,11 @@
             typingTimer = setTimeout(() => $("typingIndicator").textContent = "", 1500);
         });
 
-        connection.on("RoomJoined", (room) => {
+        connection.on("RoomJoined", async (room) => {
             currentRoom = room;
             $("currentRoom").textContent = room;
             addMessage(`<i class="text-info">Вы вошли в комнату ${room}</i>`);
+            await loadHistory(room);   // ← загружаем историю новой комнаты
         });
 
         connection.on("PrivateMessage", (from, text, at) => {
@@ -110,6 +127,7 @@
         // --- Старт ---
         try {
             await connection.start();
+            await loadHistory(currentRoom);
             $("messageInput").disabled = false;
             $("sendBtn").disabled = false;
             $("connectBtn").disabled = true;
